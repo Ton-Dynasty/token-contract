@@ -137,7 +137,7 @@ export class JettonFactory implements Contract {
         stopped,
         content
       ),
-      value: toNano("1"),
+      value: toNano("0.3"),
     });
   }
 
@@ -181,7 +181,7 @@ export class JettonFactory implements Contract {
         stopped,
         content
       ),
-      value: total_ton_amount + toNano("1.5"),
+      value: total_ton_amount + toNano("0.5"),
     });
   }
 

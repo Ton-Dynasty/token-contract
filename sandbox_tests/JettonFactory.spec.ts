@@ -142,8 +142,8 @@ describe("JettonFactory", () => {
       0,
       defaultContent
     );
-    prettyLogTransactions(deployMinterResult.transactions);
-    printTransactionFees(deployMinterResult.transactions);
+    // prettyLogTransactions(deployMinterResult.transactions);
+    // printTransactionFees(deployMinterResult.transactions);
     expect(deployMinterResult.transactions).toHaveTransaction({
       from: deployer.address,
       to: jettonFactory.address,
@@ -175,5 +175,42 @@ describe("JettonFactory", () => {
     let wallet = await userWallet(deployer.address);
     let balance = await wallet.getJettonBalance();
     expect(balance).toEqual(toNano("1000"));
+  });
+
+  it("should allow admin to claim rewards", async () => {
+    // other user transfer ton to factory
+    let otherUser = await blockchain.treasury("otherUser");
+
+    let tonAmount = toNano("1000");
+    let transferResult = await otherUser.send({
+      value: tonAmount,
+      to: jettonFactory.address,
+      sendMode: 1,
+      bounce: false,
+      body: beginCell().endCell(),
+    });
+
+    // prettyLogTransactions(transferResult.transactions);
+    // printTransactionFees(transferResult.transactions);
+
+    expect(transferResult.transactions).toHaveTransaction({
+      from: otherUser.address,
+      to: jettonFactory.address,
+      success: true,
+    });
+
+    let beforeBalance = await deployer.getBalance();
+    let claimResult = await jettonFactory.sendClaim(deployer.getSender());
+    console.log("beforeBalance", beforeBalance);
+    // prettyLogTransactions(claimResult.transactions);
+    // printTransactionFees(claimResult.transactions);
+    expect(claimResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: jettonFactory.address,
+      success: true,
+    });
+    let afterBalance = await deployer.getBalance();
+    console.log("afterBalance", afterBalance);
+    expect(afterBalance).toBeGreaterThan(beforeBalance);
   });
 });

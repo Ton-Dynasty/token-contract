@@ -112,7 +112,7 @@ const createJettonMasterNoPremintAction = async (
     ui.write("Please verify data:\n");
     ui.write(`Admin:${admin}\n\n`);
     ui.write("Metadata url:" + contentUrl);
-    dataCorrect = await promptBool("Is everything ok?(y/n)", ["y", "n"], ui);
+    dataCorrect = await promptBool("Is everything ok?", ["y", "n"], ui);
     if (!dataCorrect) {
       const upd = await ui.choose(
         "What do you want to update?",
@@ -225,12 +225,16 @@ const createJettonMasterPremintAction = async (
     ui
   );
   ui.write(`Jetton content url:${contentUrl}`);
+
+  let premintAmount = await promptAmount("Premint amount:", ui);
+  ui.write(`Premint amount:${premintAmount}\n`);
+
   let dataCorrect = false;
   do {
     ui.write("Please verify data:\n");
     ui.write(`Admin:${admin}\n\n`);
     ui.write("Metadata url:" + contentUrl);
-    dataCorrect = await promptBool("Is everything ok?(y/n)", ["y", "n"], ui);
+    dataCorrect = await promptBool("Is everything ok?", ["y", "n"], ui);
     if (!dataCorrect) {
       const upd = await ui.choose(
         "What do you want to update?",
@@ -253,8 +257,6 @@ const createJettonMasterPremintAction = async (
     }
   } while (!dataCorrect);
 
-  let premintAmount = await promptAmount("Premint amount:", ui);
-  ui.write(`Premint amount:${premintAmount}\n`);
   ui.write(`Creating JettonMaster with premint\n`);
   const api = provider.api() as TonClient4;
   const curState = await api.getAccount(
@@ -268,7 +270,7 @@ const createJettonMasterPremintAction = async (
     throw "Last transaction can't be null on deployed contract";
   const result = await factoryContract.sendCreateJettonMasterPremint(
     provider.sender(),
-    toNano("0"),
+    toNano("0.5"),
     toNano(premintAmount),
     mint,
     admin,
