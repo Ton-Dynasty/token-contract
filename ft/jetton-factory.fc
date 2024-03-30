@@ -1,0 +1,144 @@
+#include "jetton-utils.fc";
+#include "discovery-params.fc";
+#include "params.fc";
+#include "op-codes.fc";
+
+int provide_address_gas_consumption() asm "10000000 PUSHINT";
+
+(slice, cell, cell) load_data() inline {
+    slice ds = get_data().begin_parse();
+    return (ds~load_msg_addr(), ds~load_ref(), ds~load_ref());
+}
+
+() save_data(slice admin_address, cell jetton_master_code, cell jetton_wallet_code) impure inline {
+    set_data(begin_cell()
+            .store_slice(admin_address)
+            .store_ref(jetton_master_code)
+            .store_ref(jetton_wallet_code)
+            .end_cell());
+}
+
+
+;; () create_jetton_master_nopremint(int total_supply, slice jetton_master_owner, int stopped, cell content, cell jetton_wallet_code, cell jetton_master_code)  {
+    
+;; }
+
+;; () create_jetton_master_premint(int total_ton_amount,int total_supply, int mintable, slice jetton_master_owner, int stopped, cell content, cell jetton_wallet_code, cell jetton_master_code) inline {
+    
+;; }
+
+() claim(slice admin_addr) inline {
+    var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(admin_addr)
+            .store_coins(0)
+            .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+            .end_cell();
+    send_raw_message(msg, 128);
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore empty messages
+        return ();
+    }
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    if (flags & 1) { ;; ignore all bounced messages
+        return ();
+    }
+    slice sender_address = cs~load_msg_addr();
+    cs~load_msg_addr(); ;; skip dst
+    cs~load_coins(); ;; skip value
+    cs~skip_bits(1); ;; skip extracurrency collection
+    cs~load_coins(); ;; skip ihr_fee
+    int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; we use message fwd_fee for estimation of forward_payload costs
+
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+
+    (slice admin_address, cell jetton_master_code, cell jetton_wallet_code) = load_data();
+
+    if(op == 35){
+        int total_supply = in_msg_body~load_coins();
+        slice jetton_master_owner = in_msg_body~load_msg_addr();
+        int stopped = in_msg_body~load_uint(1);
+        cell content = in_msg_body~load_ref();
+        ;; create_jetton_master_nopremint(total_supply, jetton_master_owner, stopped, content, jetton_wallet_code, jetton_master_code);
+        ;; ~strdump("create_jetton_master_nopremint5");
+        cell jetton_master_state_init = calculate_jetton_master_state_init(total_supply, 0, jetton_master_owner, stopped, 0, content, jetton_wallet_code, jetton_master_code);
+        ;; ~dump(jetton_master_state_init);
+        slice jetton_master_addr = calculate_jetton_master_address(jetton_master_state_init);
+        ;; ~dump(jetton_master_addr);
+        var msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_master_addr)
+                .store_coins(0)
+                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+                .store_ref(jetton_master_state_init)
+                .store_ref(begin_cell().end_cell())
+                .end_cell();
+        send_raw_message(msg, 64);
+        ;; save_data(admin_address,jetton_master_code,jetton_wallet_code);
+        ;; ~strdump("create_jetton_master_nopremint");
+        return();
+    }
+
+    if(op == 36){
+        ;; ~strdump("create_jetton_master_premint");
+        int total_ton_amount = in_msg_body~load_coins();
+        int total_supply = in_msg_body~load_coins();
+        int mintable = in_msg_body~load_uint(1);
+        slice jetton_master_owner = in_msg_body~load_msg_addr();
+        int stopped = in_msg_body~load_uint(1);
+        cell content = in_msg_body~load_ref();
+        
+        ;; create_jetton_master_premint(total_ton_amount, total_supply, mintable, jetton_master_owner, stopped, content, jetton_wallet_code, jetton_master_code);
+        cell jetton_master_state_init = calculate_jetton_master_state_init(0, mintable, jetton_master_owner, stopped, 1, content, jetton_wallet_code, jetton_master_code);
+        slice jetton_master_addr = calculate_jetton_master_address(jetton_master_state_init);
+        ;; cell jetton_wallet_state_init = calculate_jetton_wallet_state_init(jetton_master_owner, jetton_master_addr, jetton_wallet_code);
+        ;; slice some = "test";
+        var masterMsg = begin_cell()
+                .store_uint(op::internal_transfer(), 32)
+                .store_uint(query_id, 64)
+                .store_coins(total_supply)
+                .store_slice(jetton_master_addr)
+                .store_slice(sender_address)
+                .store_coins(total_ton_amount)
+                .store_maybe_ref(null())
+                .end_cell();
+        var mintMsg = begin_cell()
+                .store_uint(op::mint(), 32)
+                .store_uint(query_id, 64)
+                .store_slice(jetton_master_owner)
+                .store_coins(total_ton_amount)
+                .store_coins(total_supply)
+                .store_ref(masterMsg)
+                .end_cell();
+        var msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_master_addr)
+                .store_coins(0)
+                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+                .store_ref(jetton_master_state_init)
+                .store_ref(mintMsg)
+                .end_cell();
+        send_raw_message(msg, 64);
+        ;; save_data(admin_address,jetton_master_code,jetton_wallet_code);
+        return();
+    }
+
+    if(op == 37){
+        throw_unless(73, equal_slices(sender_address, admin_address));
+        throw_unless(100, my_balance >= provide_address_gas_consumption());
+        claim(admin_address);
+        return();
+    }
+
+    throw(0xffff);
+}
+
+(slice) get_admin_address() method_id {
+    (slice admin_address, cell jetton_master_code, cell jetton_wallet_code) = load_data();
+    return admin_address;
+}
