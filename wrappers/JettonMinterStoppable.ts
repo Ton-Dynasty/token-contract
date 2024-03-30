@@ -214,10 +214,26 @@ export class JettonMinter implements Contract {
       .endCell();
   }
 
+  static startMessage() {
+    return beginCell()
+      .storeUint(Op.stop, 32)
+      .storeUint(0, 64) // op, queryId
+      .storeUint(0, 1)
+      .endCell();
+  }
+
   async sendStop(provider: ContractProvider, via: Sender) {
     await provider.internal(via, {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: JettonMinter.stopMessage(),
+      value: toNano("0.05"),
+    });
+  }
+
+  async sendStart(provider: ContractProvider, via: Sender) {
+    await provider.internal(via, {
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: JettonMinter.startMessage(),
       value: toNano("0.05"),
     });
   }

@@ -274,7 +274,7 @@ const createJettonMasterPremintAction = async (
     toNano(premintAmount),
     mint,
     admin,
-    premint,
+    0,
     jettonContentToCell({ type: 1, uri: contentUrl })
   );
   let lastTx = await getAccountLastTx(provider, factoryContract.address);

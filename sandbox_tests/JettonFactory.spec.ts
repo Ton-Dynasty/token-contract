@@ -201,7 +201,7 @@ describe("JettonFactory", () => {
 
     let beforeBalance = await deployer.getBalance();
     let claimResult = await jettonFactory.sendClaim(deployer.getSender());
-    console.log("beforeBalance", beforeBalance);
+    // console.log("beforeBalance", beforeBalance);
     // prettyLogTransactions(claimResult.transactions);
     // printTransactionFees(claimResult.transactions);
     expect(claimResult.transactions).toHaveTransaction({
@@ -210,7 +210,7 @@ describe("JettonFactory", () => {
       success: true,
     });
     let afterBalance = await deployer.getBalance();
-    console.log("afterBalance", afterBalance);
+    // console.log("afterBalance", afterBalance);
     expect(afterBalance).toBeGreaterThan(beforeBalance);
   });
 });

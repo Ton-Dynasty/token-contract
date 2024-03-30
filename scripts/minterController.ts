@@ -20,7 +20,7 @@ import {
 import { TonClient4 } from "@ton/ton";
 let minterContract: OpenedContract<JettonMinter>;
 
-const adminActions = ["Mint", "Change admin"];
+const adminActions = ["Mint", "Change admin", "Send stopped", "Send started"];
 const userActions = ["Info", "Quit"];
 
 const failedTransMessage = (ui: UIProvider) => {
@@ -160,6 +160,76 @@ const mintAction = async (provider: NetworkProvider, ui: UIProvider) => {
   }
 };
 
+const sendStoppedAction = async (provider: NetworkProvider, ui: UIProvider) => {
+  const sender = provider.sender();
+  let wantStop = await promptBool(
+    "Do you want to stop the minter?",
+    ["Yes", "No"],
+    ui
+  );
+  const api = provider.api() as TonClient4;
+  const curState = await api.getAccount(
+    await getLastBlock(provider),
+    minterContract.address
+  );
+  if (
+    curState.account.state.type !== "active" ||
+    curState.account.state.code == null
+  )
+    throw "Last transaction can't be null on deployed contract";
+
+  if (wantStop) {
+    const result = await minterContract.sendStop(sender);
+    let lastTx = await getAccountLastTx(provider, minterContract.address);
+    const gotTrans = await waitForTransaction(
+      provider,
+      minterContract.address,
+      lastTx,
+      10
+    );
+    if (gotTrans) {
+      ui.write("Minter stopped successfully");
+    } else {
+      failedTransMessage(ui);
+    }
+  }
+};
+
+const sendStartedAction = async (provider: NetworkProvider, ui: UIProvider) => {
+  const sender = provider.sender();
+  let wantStart = await promptBool(
+    "Do you want to start the minter?",
+    ["Yes", "No"],
+    ui
+  );
+  const api = provider.api() as TonClient4;
+  const curState = await api.getAccount(
+    await getLastBlock(provider),
+    minterContract.address
+  );
+  if (
+    curState.account.state.type !== "active" ||
+    curState.account.state.code == null
+  )
+    throw "Last transaction can't be null on deployed contract";
+
+  if (wantStart) {
+    const result = await minterContract.sendStart(sender);
+    let lastTx = await getAccountLastTx(provider, minterContract.address);
+    const gotTrans = await waitForTransaction(
+      provider,
+      minterContract.address,
+      lastTx,
+      10
+    );
+    if (gotTrans) {
+      ui.write("Minter started successfully");
+    } else {
+      failedTransMessage(ui);
+    }
+  }
+};
+
 export async function run(provider: NetworkProvider) {
   const ui = provider.ui();
   const sender = provider.sender();
@@ -223,6 +293,12 @@ export async function run(provider: NetworkProvider) {
         break;
       case "Change admin":
         await changeAdminAction(provider, ui);
+        break;
+      case "Send stopped":
+        await sendStoppedAction(provider, ui);
+        break;
+      case "Send started":
+        await sendStartedAction(provider, ui);
         break;
       case "Info":
         await infoAction(provider, ui);
