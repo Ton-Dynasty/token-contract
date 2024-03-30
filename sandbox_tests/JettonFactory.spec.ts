@@ -131,6 +131,7 @@ describe("JettonFactory", () => {
       deploy: true,
     });
   });
+
   it("should deploy JettonMinter with premint", async () => {
     let deployMinterResult = await jettonFactory.sendCreateJettonMasterPremint(
       deployer.getSender(),
@@ -148,5 +149,31 @@ describe("JettonFactory", () => {
       to: jettonFactory.address,
       success: true,
     });
+
+    jettonMinter = blockchain.openContract(
+      JettonMinter.createFromConfig(
+        {
+          mintable: 0,
+          admin: deployer.address,
+          stopped: 0,
+          premint: 1,
+          content: defaultContent,
+          wallet_code: jwallet_code,
+        },
+        minter_code
+      )
+    );
+    expect(deployMinterResult.transactions).toHaveTransaction({
+      from: jettonFactory.address,
+      to: jettonMinter.address,
+      deploy: true,
+    });
+
+    let totalSupply = await jettonMinter.getTotalSupply();
+    expect(totalSupply).toEqual(toNano("1000"));
+
+    let wallet = await userWallet(deployer.address);
+    let balance = await wallet.getJettonBalance();
+    expect(balance).toEqual(toNano("1000"));
   });
 });
